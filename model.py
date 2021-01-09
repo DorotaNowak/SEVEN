@@ -8,6 +8,8 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import seaborn as sns
 from data_loader import load_data
+from plots import plot_MNIST_data
+from create_data import create_labeled_data, create_unlabeled_data, create_testing_data
 
 n_epochs = 30
 batch_size = 32
@@ -27,18 +29,14 @@ train_batch_idx, (train_data, train_targets) = next(train_set)
 test_set = enumerate(test_loader)
 test_batch_idx, (test_data, test_targets) = next(test_set)
 
-from plots import plot_MNIST_data
-
 plot_MNIST_data(train_data, train_targets)
-
-from create_data import create_labeled_data, create_unlabeled_data, create_testing_data
 
 labeled_pos, labeled_neg = create_labeled_data(100, train_targets)
 unlabeled = create_unlabeled_data(2000)
 test = create_testing_data(test_targets)
 
 
-def get_accuracy(test, threshold, fnet):
+def get_accuracy(test, threshold, model):
     correct = 0
     for i in range(len(test)):
         img0 = test_data[test[i][0]].unsqueeze(0)
@@ -46,13 +44,13 @@ def get_accuracy(test, threshold, fnet):
         true_label = test[i][2]
         img0, img1 = img0.cuda(), img1.cuda()
 
-        output_f1, output_f2 = fnet(img0, img1)
+        output_f1, output_f2 = model(img0, img1)
 
         euclidean_distance = F.pairwise_distance(output_f1, output_f2)
 
-        if (euclidean_distance > threshold and true_label == -1):
+        if euclidean_distance > threshold and true_label == -1:
             correct += 1
-        if (euclidean_distance <= threshold and true_label == 1):
+        if euclidean_distance <= threshold and true_label == 1:
             correct += 1
     return correct / len(test)
 
@@ -87,10 +85,8 @@ def show_plot(iteration, loss):
     plt.plot(iteration, loss)
     plt.show()
 
-print('lala')
 train_acc = []
 for epoch in range(0, n_epochs):
-    print(epoch)
     fnet.train()
     train_loss = 0.0
     train_d_loss = 0.0
@@ -144,3 +140,59 @@ for epoch in range(0, n_epochs):
     loss_history_d.append(train_d_loss)
     loss_history_g.append(train_g_loss)
     print("Epoch number {}\n Current loss {}\n".format(epoch, train_loss))
+
+
+from plots import plot_loss
+plot_loss(loss_history, 'Loss')
+plot_loss(loss_history_d, 'Training Discriminative Loss')
+plot_loss(loss_history_g, 'Training Generative Loss')
+plot_loss(train_acc, 'Accuracy')
+
+fnet.eval()
+positive = []
+negative = []
+tp = 0
+tn = 0
+fp = 0
+fn = 0
+
+threshold = 0.6
+
+for i in range(len(test)):
+    img0 = test_data[test[i][0]].unsqueeze(0)
+    img1 = test_data[test[i][1]].unsqueeze(0)
+    true_label = test[i][2]
+    img0, img1 = img0.cuda(), img1.cuda()
+
+    output_f1, output_f2 = fnet(img0, img1)
+
+    euclidean_distance = F.pairwise_distance(output_f1, output_f2)
+
+    if true_label == 1:
+        positive.append(euclidean_distance)
+    else:
+        negative.append(euclidean_distance)
+
+    if euclidean_distance > threshold and true_label == -1:
+        tn += 1
+    if euclidean_distance > threshold and true_label == 1:
+        fn += 1
+    if euclidean_distance <= threshold and true_label == 1:
+        tp += 1
+    if euclidean_distance <= threshold and true_label == -1:
+        fp += 1
+
+print(tp)
+print(fp)
+print(tn)
+print(fn)
+print('Accuracy:', (tn + tp) / (tn + tp + fn + fp))
+print('Recall: ', tp / (tp + fn))
+print('Precision:', tp / (tp + fp))
+
+pos = [p.cpu().detach().numpy()[0] for p in positive]
+neg = [n.cpu().detach().numpy()[0] for n in negative]
+
+p1=sns.kdeplot(pos, shade=True, color="b")
+p2=sns.kdeplot(neg, shade=True, color="r")
+plt.show()

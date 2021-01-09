@@ -12,4 +12,15 @@ def plot_MNIST_data(data, targets):
         ax.imshow(data[i][0], cmap='gray')
         ax.set_title('Label: {}'.format(targets[i]))
     plt.tight_layout()
+    plt.savefig('images/MNIST_data.png')
+    plt.show()
+
+
+def plot_loss(loss_history, name):
+    plt.plot([i for i in range(len(loss_history))], loss_history)
+    plt.xlabel('Epoch')
+    plt.ylabel(name)
+    filename = name.replace(' ', '_').lower()
+    path = 'images/' + filename + '.png'
+    plt.savefig(path)
     plt.show()
