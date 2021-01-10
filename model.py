@@ -1,17 +1,17 @@
 import torch
-import torchvision
-
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from data_loader import load_data
-from plots import plot_MNIST_data
-from create_data import create_labeled_data, create_unlabeled_data, create_testing_data
 
-n_epochs = 30
+from data_loader import load_data
+from plots import plot_MNIST_data, plot_loss
+from create_data import create_labeled_data, create_unlabeled_data, create_testing_data
+from networks import FNet, GNet
+from metrics import LossDiscriminative, LossGenerative
+
+n_epochs = 60
 batch_size = 32
 alpha = 0.05
 beta = 0.0001
@@ -21,6 +21,7 @@ torch.manual_seed(random_seed)
 torch.backends.cudnn.enabled = True
 
 train_loader, test_loader = load_data()
+
 # Training data
 train_set = enumerate(train_loader)
 train_batch_idx, (train_data, train_targets) = next(train_set)
@@ -29,8 +30,10 @@ train_batch_idx, (train_data, train_targets) = next(train_set)
 test_set = enumerate(test_loader)
 test_batch_idx, (test_data, test_targets) = next(test_set)
 
+# Vizualize MNIST dataset
 plot_MNIST_data(train_data, train_targets)
 
+# Create labeled, unlabeled and test data
 labeled_pos, labeled_neg = create_labeled_data(100, train_targets)
 unlabeled = create_unlabeled_data(2000)
 test = create_testing_data(test_targets)
@@ -44,9 +47,9 @@ def get_accuracy(test, threshold, model):
         true_label = test[i][2]
         img0, img1 = img0.cuda(), img1.cuda()
 
-        output_f1, output_f2 = model(img0, img1)
+        output_f0, output_f1 = model(img0, img1)
 
-        euclidean_distance = F.pairwise_distance(output_f1, output_f2)
+        euclidean_distance = F.pairwise_distance(output_f0, output_f1)
 
         if euclidean_distance > threshold and true_label == -1:
             correct += 1
@@ -62,31 +65,23 @@ loss_history_d = []
 loss_history_g = []
 loss_history_step = []
 
-from networks import FNet, GNet
-
+# Initialize networks
 fnet = FNet().cuda()
 gnet = GNet().cuda()
 
-from metrics import LossDiscriminative, LossGenerative
-
+# Initialize loss functions
 criterion_1 = LossDiscriminative()
 criterion_2 = LossGenerative()
 
 optimizer = optim.RMSprop([
     {'params': fnet.parameters(), 'lr': 1e-3},
-    {'params': gnet.parameters(), 'lr': 1e-3}])
+    {'params': gnet.parameters(), 'lr': 1e-3}
+])
 
 
-def reset_grad():
-    optimizer.zero_grad()
-
-
-def show_plot(iteration, loss):
-    plt.plot(iteration, loss)
-    plt.show()
-
+# Train the networks
 train_acc = []
-for epoch in range(0, n_epochs):
+for epoch in range(n_epochs):
     fnet.train()
     train_loss = 0.0
     train_d_loss = 0.0
@@ -107,12 +102,12 @@ for epoch in range(0, n_epochs):
 
         img0, img1, label = img0.cuda(), img1.cuda(), label.cuda()
 
-        reset_grad()
-        output_f1, output_f2 = fnet(img0, img1)
-        loss_d = criterion_1(output_f1, output_f2, label)
+        optimizer.zero_grad()
+        output_f0, output_f1 = fnet(img0, img1)
+        loss_d = criterion_1(output_f0, output_f1, label)
 
-        output_g1, output_g2 = gnet(output_f1, output_f2)
-        loss_g = criterion_2(img0, img1, output_g1, output_g2)
+        output_g0, output_g1 = gnet(output_f0, output_f1)
+        loss_g = criterion_2(img0, img1, output_g0, output_g1)
 
         reg = 0
         for p in gnet.parameters():
@@ -125,7 +120,7 @@ for epoch in range(0, n_epochs):
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.item()
+        train_loss += loss
         train_d_loss += loss_d
         train_g_loss += loss_g
 
@@ -142,12 +137,14 @@ for epoch in range(0, n_epochs):
     print("Epoch number {}\n Current loss {}\n".format(epoch, train_loss))
 
 
-from plots import plot_loss
+# Plot
 plot_loss(loss_history, 'Loss')
 plot_loss(loss_history_d, 'Training Discriminative Loss')
 plot_loss(loss_history_g, 'Training Generative Loss')
 plot_loss(train_acc, 'Accuracy')
 
+
+# Test the model
 fnet.eval()
 positive = []
 negative = []
@@ -156,7 +153,7 @@ tn = 0
 fp = 0
 fn = 0
 
-threshold = 0.6
+threshold = 0.5
 
 for i in range(len(test)):
     img0 = test_data[test[i][0]].unsqueeze(0)
@@ -164,9 +161,9 @@ for i in range(len(test)):
     true_label = test[i][2]
     img0, img1 = img0.cuda(), img1.cuda()
 
-    output_f1, output_f2 = fnet(img0, img1)
+    output_f0, output_f1 = fnet(img0, img1)
 
-    euclidean_distance = F.pairwise_distance(output_f1, output_f2)
+    euclidean_distance = F.pairwise_distance(output_f0, output_f1)
 
     if true_label == 1:
         positive.append(euclidean_distance)
@@ -182,10 +179,10 @@ for i in range(len(test)):
     if euclidean_distance <= threshold and true_label == -1:
         fp += 1
 
-print(tp)
-print(fp)
-print(tn)
-print(fn)
+print('True positive: ', tp)
+print('False positive: ', fp)
+print('True negative: ', tn)
+print('False negative: ', fn)
 print('Accuracy:', (tn + tp) / (tn + tp + fn + fp))
 print('Recall: ', tp / (tp + fn))
 print('Precision:', tp / (tp + fp))
@@ -193,6 +190,6 @@ print('Precision:', tp / (tp + fp))
 pos = [p.cpu().detach().numpy()[0] for p in positive]
 neg = [n.cpu().detach().numpy()[0] for n in negative]
 
-p1=sns.kdeplot(pos, shade=True, color="b")
-p2=sns.kdeplot(neg, shade=True, color="r")
+p1 = sns.kdeplot(pos, shade=True, color="b")
+p2 = sns.kdeplot(neg, shade=True, color="r")
 plt.show()

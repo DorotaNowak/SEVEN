@@ -23,9 +23,6 @@ def create_labeled_data(n_samples, train_targets):
     return labeled_pos, labeled_neg
 
 
-
-
-
 def create_unlabeled_data(n_samples):
     unlabeled = []
 
@@ -40,20 +37,15 @@ def create_unlabeled_data(n_samples):
 def create_testing_data(test_targets):
     test = []
     for i in range(10):
-        idxs1 = list(np.where(test_targets==i)[0])
-        idxs2 = list(np.where(test_targets!=i)[0])
+        idxs1 = list(np.where(test_targets == i)[0])
+        idxs2 = list(np.where(test_targets != i)[0])
 
         sample1 = random.sample(idxs1, 20)
         sample2 = random.sample(idxs1, 10)
         sample3 = random.sample(idxs2, 10)
 
-        for i in range(0,20,2):
-            test.append((sample1[i], sample1[i+1], 1))
+        for i in range(0, 20, 2):
+            test.append((sample1[i], sample1[i + 1], 1))
         for i in range(10):
             test.append((sample2[i], sample3[i], -1))
     return test
-
-
-
-
-
