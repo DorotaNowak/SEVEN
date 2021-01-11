@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 # Visualize MNIST data
@@ -8,9 +9,11 @@ def plot_MNIST_data(data, targets):
     # plot images
     fig, axes = plt.subplots(num_row, num_col, figsize=(1.5 * num_col, 2 * num_row))
     for i in range(10):
+        idx = list(np.where(targets==i))[0][0]
+        print(idx)
         ax = axes[i // num_col, i % num_col]
-        ax.imshow(data[i][0], cmap='gray')
-        ax.set_title('Label: {}'.format(targets[i]))
+        ax.imshow(data[idx][0], cmap='gray')
+        ax.set_title('Label: {}'.format(targets[idx]))
     plt.tight_layout()
     plt.savefig('images/MNIST_data.png')
     plt.show()

@@ -11,7 +11,7 @@ from create_data import create_labeled_data, create_unlabeled_data, create_testi
 from networks import FNet, GNet
 from metrics import LossDiscriminative, LossGenerative
 
-n_epochs = 60
+n_epochs = 30
 batch_size = 32
 alpha = 0.05
 beta = 0.0001
@@ -193,3 +193,15 @@ neg = [n.cpu().detach().numpy()[0] for n in negative]
 p1 = sns.kdeplot(pos, shade=True, color="b")
 p2 = sns.kdeplot(neg, shade=True, color="r")
 plt.show()
+
+
+from classifier import test_classification
+test_classification(fnet, test_data, test_targets)
+
+data = {
+    "fnet": fnet.state_dict(),
+    "gnet": gnet.state_dict()
+}
+
+FILE = "data.pth"
+torch.save(data, FILE)
