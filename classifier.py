@@ -1,6 +1,6 @@
-import torch
 import torch.nn.functional as F
 import numpy as np
+import random
 
 
 def test_classification(fnet, test_data, test_targets):
@@ -10,7 +10,8 @@ def test_classification(fnet, test_data, test_targets):
         patterns.append(test_data[np.where(test_targets == i)[0][4]])
 
     true = 0
-    for test_idx in range(800, 850):
+    to_test = [random.randint(0, 9999) for i in range(50)]
+    for test_idx in to_test:
 
         distances = []
         img0 = test_data[test_idx].unsqueeze(0)
@@ -27,4 +28,4 @@ def test_classification(fnet, test_data, test_targets):
         min_idx = np.argmin(distances)
         if min_idx == true_label:
             true += 1
-    print(true)
+    print('Accuracy: {}'.format(true/len(to_test)))

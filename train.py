@@ -2,14 +2,12 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 from data_loader import load_data
-from plots import plot_MNIST_data, plot_loss
+from plots import plot_MNIST_data, plot_loss, plot_split
 from create_data import create_labeled_data, create_unlabeled_data, create_testing_data
 from networks import FNet, GNet
 from metrics import LossDiscriminative, LossGenerative
+from classifier import test_classification
 
 n_epochs = 30
 batch_size = 32
@@ -20,6 +18,7 @@ random_seed = 0
 torch.manual_seed(random_seed)
 torch.backends.cudnn.enabled = True
 
+# Load the data
 train_loader, test_loader = load_data()
 
 # Training data
@@ -78,7 +77,6 @@ optimizer = optim.RMSprop([
     {'params': gnet.parameters(), 'lr': 1e-3}
 ])
 
-
 # Train the networks
 train_acc = []
 for epoch in range(n_epochs):
@@ -128,6 +126,7 @@ for epoch in range(n_epochs):
             counter.append(iteration)
             loss_history_step.append(loss.item())
         iteration += 1
+
     fnet.eval()
     train_acc.append(get_accuracy(test, 0.5, fnet))
 
@@ -136,13 +135,11 @@ for epoch in range(n_epochs):
     loss_history_g.append(train_g_loss)
     print("Epoch number {}\n Current loss {}\n".format(epoch, train_loss))
 
-
 # Plot
 plot_loss(loss_history, 'Loss')
 plot_loss(loss_history_d, 'Training Discriminative Loss')
 plot_loss(loss_history_g, 'Training Generative Loss')
 plot_loss(train_acc, 'Accuracy')
-
 
 # Test the model
 fnet.eval()
@@ -179,29 +176,24 @@ for i in range(len(test)):
     if euclidean_distance <= threshold and true_label == -1:
         fp += 1
 
-print('True positive: ', tp)
-print('False positive: ', fp)
-print('True negative: ', tn)
-print('False negative: ', fn)
-print('Accuracy:', (tn + tp) / (tn + tp + fn + fp))
-print('Recall: ', tp / (tp + fn))
-print('Precision:', tp / (tp + fp))
+print('True positive: {}'.format(tp))
+print('False positive: {}'.format(fp))
+print('True negative: {}'.format(tn))
+print('False negative: {}'.format(fn))
+print('Accuracy: {}'.format((tn + tp) / (tn + tp + fn + fp)))
+print('Recall: {}'.format(tp / (tp + fn)))
+print('Precision:'.format(tp / (tp + fp)))
 
-pos = [p.cpu().detach().numpy()[0] for p in positive]
-neg = [n.cpu().detach().numpy()[0] for n in negative]
+# Visualize the results
+plot_split(positive, negative)
 
-p1 = sns.kdeplot(pos, shade=True, color="b")
-p2 = sns.kdeplot(neg, shade=True, color="r")
-plt.show()
-
-
-from classifier import test_classification
+# Classification test
 test_classification(fnet, test_data, test_targets)
 
-data = {
+model = {
     "fnet": fnet.state_dict(),
     "gnet": gnet.state_dict()
 }
 
-FILE = "data.pth"
-torch.save(data, FILE)
+FILE = "model.pth"
+torch.save(model, FILE)

@@ -18,6 +18,7 @@ def create_labeled_data(n_samples, train_targets):
             labeled_pos.append((sample1[i], sample1[i + 1], 1))
         for i in range(n_samples):
             labeled_neg.append((sample2[i], sample3[i], -1))
+
     random.shuffle(labeled_pos)
     random.shuffle(labeled_neg)
     return labeled_pos, labeled_neg
@@ -30,6 +31,7 @@ def create_unlabeled_data(n_samples):
         a = random.randint(0, 59999)
         b = random.randint(0, 59999)
         unlabeled.append((a, b, 0))
+
     random.shuffle(unlabeled)
     return unlabeled
 
