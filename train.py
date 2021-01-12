@@ -33,8 +33,9 @@ test_batch_idx, (test_data, test_targets) = next(test_set)
 plot_MNIST_data(train_data, train_targets)
 
 # Create labeled, unlabeled and test data
-labeled_pos, labeled_neg = create_labeled_data(100, train_targets)
-unlabeled = create_unlabeled_data(2000)
+n = 100
+labeled_pos, labeled_neg = create_labeled_data(n, train_targets)
+unlabeled = create_unlabeled_data(6000)
 test = create_testing_data(test_targets)
 
 
@@ -195,5 +196,5 @@ model = {
     "gnet": gnet.state_dict()
 }
 
-FILE = "model.pth"
+FILE = "saved_models/model_" + str(20 * n) + ".pth"
 torch.save(model, FILE)
